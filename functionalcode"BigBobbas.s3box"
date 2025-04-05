@@ -3,6 +3,14 @@
 ## However the <name:> is how HA connects to the device eg. esp32-s3-box-3.local is the mDNS hostname for the device.
 ## Once added to HA changing the device name can lead to connection issues, between HA and the device.
 
+
+substitutions:
+  name: esp32-s3box-3
+  friendly_name: ESP32-S3-Box-3
+  external_media_player: your_media_player  ##change this to your external media player enity_id: do not include media_player.
+  home_assistant_host: http://homeassistant.local:8123 ##change to the full url or IP of your HA server including port
+  tts_voice_speed: "24000" # options # nabu casa "24000" # piper "16000" elevenlabs "44100" must include quotes
+
 substitutions:
   name: esp32-s3box-3
   friendly_name: ESP32-S3-Box-3
@@ -945,6 +953,59 @@ speaker:
     id: media_resampling_speaker
     output_speaker: media_mixing_input
     sample_rate: 48000  # Added explicit sample rate
+
+# Squeezelite Media Player
+media_player:
+  - platform: speaker
+    name: Squeezelite Media Player
+    id: squeezelite_media_player
+    volume_increment: 0.05
+    volume_min: 0.5
+    volume_max: 1.0
+    announcement_pipeline:
+      speaker: i2s_audio_speaker
+      format: FLAC
+      sample_rate: 48000
+      num_channels: 1
+    media_pipeline:
+      speaker: i2s_audio_speaker
+      format: FLAC
+      sample_rate: 48000
+      num_channels: 2
+    files:
+      - id: timer_finished_sound
+        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/timer_finished.flac
+      - id: wake_sound_file
+        file: https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/sounds/awake.flac
+    on_state:
+      then:
+        - if:
+            condition:
+              media_player.is_playing:
+            then:
+              - micro_wake_word.stop
+              - voice_assistant.stop
+        - if:
+            condition:
+              and:
+                - lambda: return id(global_is_assisting) == false;
+                - or:
+                    - media_player.is_idle
+                    - media_player.is_paused
+            then:
+              - if:
+                  condition:
+                    and:
+                      - switch.is_off: mute_switch
+                      - lambda: return id(wake_word_engine_location).state == "On device";
+                  then:
+                    - micro_wake_word.start
+                  else:
+                    - if:
+                        condition:
+                          - switch.is_off: mute_switch
+                        then:
+                          - voice_assistant.start
 
 media_player:
   - platform: speaker
